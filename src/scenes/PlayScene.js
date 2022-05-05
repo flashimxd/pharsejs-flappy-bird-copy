@@ -16,7 +16,8 @@ class PlayScene extends Phaser.Scene {
     this.flapVelocity = 300
     this.score = {
       label: '',
-      points: 0
+      points: 0,
+      best: 0
     }
   }
 
@@ -24,6 +25,7 @@ class PlayScene extends Phaser.Scene {
     this.load.image('sky', 'assets/sky.png')
     this.load.image('bird', 'assets/bird.png')
     this.load.image('pipe', 'assets/pipe.png')
+    this.load.image('pause', 'assets/pause.png')
   }
 
   create() {
@@ -32,6 +34,7 @@ class PlayScene extends Phaser.Scene {
     this.createPipes()
     this.createColliders()
     this.createScore()
+    this.createPause()
     this.handleInputs()
   }
 
@@ -72,7 +75,20 @@ class PlayScene extends Phaser.Scene {
 
   createScore() {
     this.score.points = 0
+    const bestScore = localStorage.getItem('bestScore')
     this.score.label = this.add.text(16, 16, `Score: ${this.score.points}`, { fontSize: '32px', fill: '#000'})
+    this.score.best = this.add.text(16, 52, `Best Score: ${bestScore || 0}`, { fontSize: '18px', fill: '#000'})
+  }
+
+  createPause() {
+    this.add.image(this.config.width - 10 , this.config.height - 10, 'pause')
+      .setScale(2)
+      .setOrigin(1)
+      .setInteractive()
+      .on('pointerdown', () => {
+        this.physics.pause()
+        this.scene.pause()
+      })
   }
 
   handleInputs() {
@@ -96,16 +112,24 @@ class PlayScene extends Phaser.Scene {
   }
 
   increaseScore() {
+    this.score.points++
+    this.score.label.setText(`Score: ${this.score.points}`)
+  }
 
-    // this.pipes.getChildren().forEach(pipe => {
-      this.score.points++
-      this.score.label.setText(`Score: ${this.score.points}`)
-    // })
+  saveBestScore() {
+    const bestScoreText = localStorage.getItem('bestScore')
+    const bestScore = bestScoreText && parseInt(bestScoreText, 10)
+
+    if(!bestScore || this.score.points > bestScore) {
+      localStorage.setItem('bestScore', this.score.points)
+    }
   }
 
   gameOver() {
     this.physics.pause()
     this.bird.setTint(0xEE4824)
+  
+    this.saveBestScore()
 
     this.time.addEvent({
       delay: 1000,
@@ -114,7 +138,6 @@ class PlayScene extends Phaser.Scene {
       },
       loop: false
     })
-    // this.restartBirdPosition()
   }
 
   placePipes(uPipe, lPipe) {
@@ -138,6 +161,7 @@ class PlayScene extends Phaser.Scene {
         if(tempPipes.length === 2) {
           this.placePipes(...tempPipes)
           this.increaseScore()
+          this.saveBestScore()
         }
       }
     })
@@ -152,12 +176,6 @@ class PlayScene extends Phaser.Scene {
   
     return rightMostX
   }
-  
-  // restartBirdPosition() {
-  //   this.bird.x = this.config.startPosition.x
-  //   this.bird.y = this.config.startPosition.y
-  //   this.bird.body.velocity.y = 0
-  // }
 }
 
 export default PlayScene
