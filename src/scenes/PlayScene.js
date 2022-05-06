@@ -8,18 +8,38 @@ class PlayScene extends BaseScene {
 
     this.bird = null
     this.pipes = null
+    this.isPaused = false
 
-    this.verticalRange = { from: 150, to: 250 }
-    this.horizontalRange = { from: 500, to: 550 }
+    // this.verticalRange = { from: 150, to: 250 }
+    // this.horizontalRange = { from: 500, to: 550 }
     this.flapVelocity = 300
     this.score = {
       label: '',
       points: 0,
       best: 0
     }
+
+    this.levels = {
+      active: 'easy',
+      dificulties: {
+        easy: {
+          horizontalRange: { from: 500, to: 550 },
+          verticalRange: { from: 150, to: 200 }
+        },
+        normal: {
+          horizontalRange: { from: 280, to: 330 },
+          verticalRange: { from: 140, to: 190 }
+        },
+        hard: {
+          horizontalRange: { from: 250, to: 310 },
+          verticalRange: { from: 120, to: 170 }
+        },
+      }
+    }
   }
 
   create() {
+    this.levels.active = 'easy'
     super.create()
     this.createBird()
     this.createPipes()
@@ -27,6 +47,51 @@ class PlayScene extends BaseScene {
     this.createScore()
     this.createPause()
     this.handleInputs()
+    this.eventListeners()
+
+    this.anims.create({
+      key: 'fly',
+      frames: this.anims.generateFrameNumbers('bird', {
+        start: 8,
+        end: 15
+      }),
+      frameRate: 8,
+      repeat: -1
+    })
+
+    this.bird.play('fly')
+  }
+
+  eventListeners() {
+    if( this.pauseEvent) return
+    this.pauseEvent = this.events.on('resume', () => {
+      this.counter = 3
+      this.countDownText = this.add.text(
+        ...this.screenCentered,
+        `Fly In: ${this.counter}`,
+        this.fontStyles
+      ).setOrigin(0.5)
+
+      this.timedDecreaseCounterEvent = this.time.addEvent({
+        delay: 1000,
+        callback: this.decreaseCounter,
+        callbackScope: this,
+        loop: true
+      })
+    })
+  }
+
+  decreaseCounter() {
+    this.counter--
+    this.countDownText.setText(`Fly in: ${this.counter}`)
+    console.log('decreaseCounter counter', this.counter)
+    if(this.counter <= 0) {
+      this.isPaused = false
+      this.countDownText.setText('')
+      this.physics.resume()
+      this.timedDecreaseCounterEvent.remove()
+      console.log('flush counter')
+    }
   }
 
   update() {
@@ -35,7 +100,14 @@ class PlayScene extends BaseScene {
   }
 
   createBird() {
-    this.bird = this.physics.add.sprite(this.config.startPosition.x, this.config.startPosition.y, 'bird').setOrigin(0)
+    this.bird = this.physics
+      .add.sprite(this.config.startPosition.x, this.config.startPosition.y, 'bird')
+      .setScale(3)
+      .setFlipX(true)
+      .setOrigin(0)
+      
+    this.bird.setBodySize(this.bird.width, this.bird.height - 8)
+
     this.bird.body.gravity.y = 600
     this.bird.setCollideWorldBounds(true)
   }
@@ -68,13 +140,16 @@ class PlayScene extends BaseScene {
   }
 
   createPause() {
+    this.isPaused = false
     this.add.image(this.config.width - 10 , this.config.height - 10, 'pause')
       .setScale(2)
       .setOrigin(1)
       .setInteractive()
       .on('pointerdown', () => {
+        this.isPaused = true
         this.physics.pause()
         this.scene.pause()
+        this.scene.launch('PauseScene')
       })
   }
 
@@ -94,7 +169,7 @@ class PlayScene extends BaseScene {
   }
 
   doFlap() {
-    console.log('do flap', this)
+    if(this.isPaused) return
     this.bird.body.velocity.y = -this.flapVelocity
   }
 
@@ -128,10 +203,13 @@ class PlayScene extends BaseScene {
   }
 
   placePipes(uPipe, lPipe) {
+    const level = this.levels.dificulties[this.levels.active]
+    console.log('level', level)
+    console.log('lvl obj', this.levels)
     const rightMostX = this.getRightMostPipe()
-    const verticalDistance = Phaser.Math.Between(this.verticalRange.from, this.verticalRange.to)
+    const verticalDistance = Phaser.Math.Between(level.verticalRange.from, level.verticalRange.to)
     const verticalPosition = Phaser.Math.Between(20, this.config.height - 20 - verticalDistance)
-    const horizontalDistance = Phaser.Math.Between(this.horizontalRange.from, this.horizontalRange.to)
+    const horizontalDistance = Phaser.Math.Between(level.horizontalRange.from, level.horizontalRange.to)
   
     uPipe.x = rightMostX + horizontalDistance
     uPipe.y = verticalPosition
@@ -149,9 +227,20 @@ class PlayScene extends BaseScene {
           this.placePipes(...tempPipes)
           this.increaseScore()
           this.saveBestScore()
+          this.increaseLevel()
         }
       }
     })
+  }
+
+  increaseLevel() {
+    if(this.score.points > 10) {
+      this.levels.active = 'normal'
+    }
+
+    if(this.score.points > 20) {
+      this.levels.active = 'hard'
+    }
   }
 
   getRightMostPipe() {

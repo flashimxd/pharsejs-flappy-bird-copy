@@ -5,9 +5,9 @@ class MenuScene extends BaseScene {
     super('MenuScene', config)
 
     this.menu = [
-      { scene: 'PlayScene', text: 'Play'},
-      { scene: 'ScoreScene', text: 'Score'},
-      { scene: null, text: 'Exit'}
+      { id: 1, scene: 'PlayScene', text: 'Play'},
+      { id: 2, scene: 'ScoreScene', text: 'Score'},
+      { id: 3, scene: null, text: 'Exit'}
     ]
   }
 
